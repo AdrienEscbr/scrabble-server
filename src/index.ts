@@ -13,8 +13,15 @@ import { WebSocketServer } from './ws/WebSocketServer';
 const PORT = Number(process.env.PORT || 4000);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || '*';
 
+function corsOriginParam() {
+  if (CLIENT_ORIGIN === '*') return true as const;
+  // Support comma-separated list of allowed origins
+  const list = CLIENT_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean);
+  return list.length <= 1 ? list[0] : list;
+}
+
 const app = express();
-app.use(cors({ origin: CLIENT_ORIGIN === '*' ? true : CLIENT_ORIGIN }));
+app.use(cors({ origin: corsOriginParam() }));
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
@@ -23,7 +30,7 @@ app.get('/health', (_req, res) => {
 
 const server = http.createServer(app);
 const io = new IOServer(server, {
-  cors: { origin: CLIENT_ORIGIN === '*' ? true : CLIENT_ORIGIN },
+  cors: { origin: corsOriginParam() },
 });
 
 const roomStore = new RoomStore();
