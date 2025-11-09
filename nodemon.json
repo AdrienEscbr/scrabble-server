@@ -1,0 +1,11 @@
+{
+  "watch": [
+    "src",
+    "index.js"
+  ],
+  "ext": "ts,js,json",
+  "ignore": [
+    "dist"
+  ]
+}
+
