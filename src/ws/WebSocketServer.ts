@@ -104,10 +104,19 @@ export class WebSocketServer {
   }
 
   private async handleToggleReady(socket: Socket, payload: any) {
-    const { roomId, ready } = payload || {};
+    const { roomId, ready, playerId } = payload || {};
     const room = this.roomStore.getRoom(roomId);
     if (!room) return this.error(socket, 'ROOM_NOT_FOUND', 'Room not found');
-    const player = this.playerBySocket(room, socket.id);
+    let player = this.playerBySocket(room, socket.id);
+    if (!player && playerId) {
+      // Fallback: attach this socket to the playerId provided (robustness on reconnects)
+      const found = room.players.find((p) => p.id === playerId);
+      if (found) {
+        found.connectionId = socket.id;
+        player = found;
+        socket.join(room.id);
+      }
+    }
     if (!player) return this.error(socket, 'NOT_IN_ROOM', 'Not in room');
     player.ready = !!ready;
     this.roomStore.updateActivity(room);
@@ -115,10 +124,18 @@ export class WebSocketServer {
   }
 
   private async handleStartGame(socket: Socket, payload: any) {
-    const { roomId } = payload || {};
+    const { roomId, playerId } = payload || {};
     const room = this.roomStore.getRoom(roomId);
     if (!room) return this.error(socket, 'ROOM_NOT_FOUND', 'Room not found');
-    const player = this.playerBySocket(room, socket.id);
+    let player = this.playerBySocket(room, socket.id);
+    if (!player && playerId) {
+      const found = room.players.find((p) => p.id === playerId);
+      if (found) {
+        found.connectionId = socket.id;
+        player = found;
+        socket.join(room.id);
+      }
+    }
     if (!player || room.hostId !== player.id) return this.error(socket, 'NOT_HOST', 'Only host can start');
     if (room.players.length < 2) return this.error(socket, 'MIN_PLAYERS', 'Au moins 2 joueurs requis');
     if (room.players.length > room.maxPlayers) return this.error(socket, 'ROOM_FULL', 'Room has too many players');
