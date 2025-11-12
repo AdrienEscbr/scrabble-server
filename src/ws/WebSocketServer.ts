@@ -69,6 +69,11 @@ export class WebSocketServer {
     if (!nickname) return this.error(socket, 'BAD_PAYLOAD', 'Missing nickname');
     const { room, player } = this.roomStore.createRoom(maxPlayers, nickname, playerId);
     player.connectionId = socket.id; player.connected = true;
+    // Bind this socket to the player for future personalized emits
+    // @ts-ignore
+    (socket as any).data = (socket as any).data || {};
+    // @ts-ignore
+    (socket as any).data.playerId = player.id;
     socket.join(room.id);
     this.roomStore.updateActivity(room);
     this.sendFullStateToSocket(socket, room.id, player.id);
@@ -81,6 +86,10 @@ export class WebSocketServer {
     try {
       const { room, player } = this.roomStore.joinRoom(roomId, nickname, playerId);
       player.connectionId = socket.id; player.connected = true;
+      // @ts-ignore
+      (socket as any).data = (socket as any).data || {};
+      // @ts-ignore
+      (socket as any).data.playerId = player.id;
       socket.join(room.id);
       this.roomStore.updateActivity(room);
       this.sendFullStateToSocket(socket, room.id, player.id);
@@ -97,6 +106,10 @@ export class WebSocketServer {
     const player = room.players.find((p) => p.id === playerId);
     if (!player) return this.error(socket, 'RECONNECT_FAILED', 'Player not in room');
     player.connectionId = socket.id; player.connected = true;
+    // @ts-ignore
+    (socket as any).data = (socket as any).data || {};
+    // @ts-ignore
+    (socket as any).data.playerId = player.id;
     socket.join(room.id);
     this.roomStore.updateActivity(room);
     this.sendFullStateToSocket(socket, room.id, player.id);
@@ -115,6 +128,10 @@ export class WebSocketServer {
         found.connectionId = socket.id;
         player = found;
         socket.join(room.id);
+        // @ts-ignore
+        (socket as any).data = (socket as any).data || {};
+        // @ts-ignore
+        (socket as any).data.playerId = found.id;
       }
     }
     if (!player) return this.error(socket, 'NOT_IN_ROOM', 'Not in room');
@@ -134,6 +151,10 @@ export class WebSocketServer {
         found.connectionId = socket.id;
         player = found;
         socket.join(room.id);
+        // @ts-ignore
+        (socket as any).data = (socket as any).data || {};
+        // @ts-ignore
+        (socket as any).data.playerId = found.id;
       }
     }
     if (!player || room.hostId !== player.id) return this.error(socket, 'NOT_HOST', 'Only host can start');
@@ -218,10 +239,13 @@ export class WebSocketServer {
 
   private async broadcastGameState(room: Room) {
     if (!room.game) return;
-    for (const p of room.players) {
-      if (!p.connectionId) continue;
-      const gs = toGameStateSummaryForPlayer(room.game, room.players, p.id);
-      this.io.to(p.connectionId).emit('message', { type: 'gameState', payload: { roomId: room.id, gameState: gs } });
+    const sockets = await this.io.in(room.id).fetchSockets();
+    for (const s of sockets) {
+      // @ts-ignore
+      const pid = (s as any).data?.playerId as string | undefined;
+      if (!pid) continue;
+      const gs = toGameStateSummaryForPlayer(room.game, room.players, pid);
+      this.io.to(s.id).emit('message', { type: 'gameState', payload: { roomId: room.id, gameState: gs } });
     }
   }
 
