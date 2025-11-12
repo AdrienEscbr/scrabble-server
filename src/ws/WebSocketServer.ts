@@ -170,13 +170,25 @@ export class WebSocketServer {
     if (!room) return;
     const player = this.playerBySocket(room, socket.id);
     if (!player) return;
-    // Notify everyone and close the room immediately
-    this.io.to(roomId).emit('message', { type: 'roomClosed', payload: { roomId, reason: 'player_left' } });
-    // Force all sockets to leave the room
-    await this.io.in(roomId).socketsLeave(roomId);
-    // Delete room
-    this.roomStore.deleteRoom(roomId);
-    console.log(`[room:${roomId}] Closed by player leaving (${player.id})`);
+    // If it's the active player during a game, force a pass to advance turn
+    if (room.game && room.game.activePlayerId === player.id) {
+      try {
+        await this.game.playMove(room, player.id, 'pass');
+      } catch (e) {
+        // ignore
+      }
+    }
+    // Remove player from room and leave socket room
+    this.roomStore.removePlayerFromRoom(roomId, player.id);
+    await socket.leave(roomId);
+    // If room still exists, broadcast update (host may have changed)
+    const remaining = this.roomStore.getRoom(roomId);
+    if (remaining) {
+      this.broadcastRoomUpdate(roomId);
+      // Optionally broadcast game state if in playing state
+      if (remaining.game) await this.broadcastGameState(remaining);
+    }
+    console.log(`[room:${roomId}] Player ${player.id} left room`);
   }
 
   // Broadcast helpers
