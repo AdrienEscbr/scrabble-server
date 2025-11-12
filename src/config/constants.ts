@@ -1,6 +1,6 @@
 // Global configuration and constants
 
-export const TURN_DURATION_MS = 120_000; // 2 minutes
+export const TURN_DURATION_MS = 180_000; // 3 minutes
 export const MAX_CONSECUTIVE_PASSES = 6;
 export const ROOM_IDLE_CLEANUP_MS = 30 * 60_000; // 30 minutes
 export const ROOM_SWEEP_INTERVAL_MS = 5 * 60_000; // 5 minutes
@@ -115,4 +115,3 @@ export function getLetterDistribution(lang: Language): LetterDef[] {
     { letter: '', count: 2, value: 0, isJoker: true },
   ];
 }
-

@@ -63,7 +63,7 @@ export interface GameState {
   turnIndex: number; // index in room.players
   activePlayerId: string;
   turnEndsAt: number; // ms epoch
-  turnDurationMs: number; // e.g., 120000
+  turnDurationMs: number; // e.g., 180000
   lastMove?: MoveSummary;
   log: MoveSummary[];
   consecutivePasses: number;
