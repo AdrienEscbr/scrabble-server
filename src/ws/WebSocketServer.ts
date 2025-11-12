@@ -240,10 +240,23 @@ export class WebSocketServer {
   private async broadcastGameState(room: Room) {
     if (!room.game) return;
     const sockets = await this.io.in(room.id).fetchSockets();
+    if (sockets.length === 0) {
+      console.log(`[ws] broadcastGameState: no sockets in room ${room.id}, falling back to connectionId emissions.`);
+      for (const p of room.players) {
+        if (!p.connectionId) continue;
+        const gs = toGameStateSummaryForPlayer(room.game, room.players, p.id);
+        this.io.to(p.connectionId).emit('message', { type: 'gameState', payload: { roomId: room.id, gameState: gs } });
+      }
+      return;
+    }
+    console.log(`[ws] broadcastGameState: ${sockets.length} sockets in room ${room.id}`);
     for (const s of sockets) {
       // @ts-ignore
       const pid = (s as any).data?.playerId as string | undefined;
-      if (!pid) continue;
+      if (!pid) {
+        console.log(`[ws] socket ${s.id} missing playerId data; skipping personalized gameState`);
+        continue;
+      }
       const gs = toGameStateSummaryForPlayer(room.game, room.players, pid);
       this.io.to(s.id).emit('message', { type: 'gameState', payload: { roomId: room.id, gameState: gs } });
     }
